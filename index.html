@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>BuildLend — Construction Loan Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root{
+  --bg:#0b0d12;--surface:#13161d;--surface2:#1a1e27;--border:#232838;
+  --accent:#c8a96e;--accent2:#e8c98e;--accent-glow:rgba(200,169,110,.15);
+  --text:#eceef4;--muted:#6b7590;--green:#3fb884;--red:#e05c5c;
+  --radius:14px;--nav-h:68px;--bot-h:72px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overscroll-behavior:none}
+
+/* ══════════════════════════════
+   DESKTOP TOP NAV — modern pill
+══════════════════════════════ */
+.top-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;height:var(--nav-h);
+  background:rgba(13,15,20,.85);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  position:sticky;top:0;z-index:200;
+}
+.logo{
+  font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;
+  color:var(--accent);letter-spacing:-.3px;flex-shrink:0;
+}
+.logo span{color:var(--text);font-weight:600}
+
+/* Pill container */
+.nav-pill-wrap{
+  display:flex;align-items:center;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:100px;
+  padding:4px;
+  gap:1px;
+}
+.nav-tab{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 16px;border-radius:100px;
+  cursor:pointer;font-size:.78rem;font-weight:500;
+  color:var(--muted);border:none;background:none;
+  transition:all .22s cubic-bezier(.4,0,.2,1);
+  white-space:nowrap;letter-spacing:.01em;
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-tab svg{width:14px;height:14px;flex-shrink:0;opacity:.7;transition:opacity .2s}
+.nav-tab.active{
+  background:var(--accent);color:#0b0d12;font-weight:600;
+  box-shadow:0 2px 12px rgba(200,169,110,.3);
+}
+.nav-tab.active svg{opacity:1}
+.nav-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.06)}
+.nav-tab:hover:not(.active) svg{opacity:1}
+
+/* nav right area */
+.nav-right{display:flex;align-items:center;gap:12px}
+.api-status-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--muted);
+  flex-shrink:0;transition:background .3s;
+}
+.api-status-dot.connected{background:var(--green)}
+.api-status-dot.error{background:var(--red)}
+.api-status-text{font-size:.72rem;color:var(--muted);white-space:nowrap}
+
+/* ══════════════════════════════
+   MOBILE BOTTOM NAV — modern
+══════════════════════════════ */
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  height:var(--bot-h);
+  background:rgba(13,15,20,.92);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid rgba(255,255,255,.06);
+  z-index:200;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.mobile-nav-inner{display:flex;align-items:stretch;height:100%;width:100%;padding:0}
+.mob-tab{
+  flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;cursor:pointer;border:none;background:none;
+  color:var(--muted);font-size:.55rem;font-weight:600;
+  letter-spacing:.3px;text-transform:uppercase;
+  padding:6px 2px;
+  -webkit-tap-highlight-color:transparent;
+  transition:color .18s;position:relative;
+}
+.mob-tab svg{width:22px;height:22px;flex-shrink:0;transition:all .2s}
+.mob-tab.active{color:var(--accent)}
+.mob-tab.active svg{filter:drop-shadow(0 0 6px rgba(200,169,110,.5))}
+/* active indicator dot */
+.mob-tab.active::after{
+  content:'';position:absolute;bottom:6px;
+  width:4px;height:4px;border-radius:50%;background:var(--accent);
+}
+
+/* ══════════════════════════════
+   PAGES
+══════════════════════════════ */
+.page{display:none;padding:24px 28px;max-width:1400px;margin:0 auto;padding-bottom:40px}
+.page.active{display:block}
+
+/* ── TYPOGRAPHY ── */
+.section-title{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--text);margin-bottom:5px}
+.section-sub{color:var(--muted);font-size:.85rem;margin-bottom:22px;line-height:1.6}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g2i{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3i{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ── CARD ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-title{font-size:.67rem;text-transform:uppercase;letter-spacing:1.8px;color:var(--accent);font-weight:600;margin-bottom:14px}
+
+/* ── FORMS ── */
+.fg{margin-bottom:13px}
+label{display:block;font-size:.76rem;color:var(--muted);margin-bottom:5px;font-weight:500;letter-spacing:.01em}
+input,select,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+  color:var(--text);padding:11px 13px;font-family:'Inter',sans-serif;font-size:16px;
+  outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+textarea{resize:vertical;min-height:80px;font-size:15px}
+select option{background:var(--surface2)}
+input[readonly]{opacity:.5}
+
+/* ── KPI ── */
+.kpi{display:flex;flex-direction:column}
+.kpi-val{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--text);word-break:break-all}
+.kpi-label{font-size:.69rem;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:10px;font-family:'Inter',sans-serif;font-weight:600;font-size:.83rem;cursor:pointer;border:none;transition:all .18s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;white-space:nowrap;letter-spacing:.01em}
+.btn svg{width:15px;height:15px;flex-shrink:0}
+.btn-primary{background:var(--accent);color:#0b0d12;box-shadow:0 2px 10px rgba(200,169,110,.25)}
+.btn-primary:active{background:var(--accent2)}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:active{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:none;border:1px solid var(--red);color:var(--red)}
+.btn-danger:active{background:var(--red);color:#fff}
+.btn-sm{padding:6px 13px;font-size:.76rem}
+.btn-full{width:100%}
+
+/* ── TABLES ── */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:.83rem;min-width:460px}
+th{text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:1.2px;padding:9px 13px;border-bottom:1px solid var(--border);font-weight:600}
+td{padding:10px 13px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.t-simple{min-width:unset}
+.t-simple td{padding:9px 0;font-size:.84rem;border-bottom:1px solid var(--border)}
+.t-simple tr:last-child td{border:none}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:600}
+.bg{background:rgba(63,184,132,.12);color:var(--green)}
+.by{background:rgba(200,169,110,.12);color:var(--accent)}
+.br{background:rgba(224,92,92,.12);color:var(--red)}
+
+/* ── PROGRESS ── */
+.pw{background:var(--border);border-radius:4px;height:5px;margin-top:8px;overflow:hidden}
+.pb{height:100%;border-radius:4px;background:var(--accent);transition:width .5s}
+.pb-g{background:var(--green)}.pb-r{background:var(--red)}
+
+/* ── COMP CARDS ── */
+.comp-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.comp-card:hover{border-color:rgba(200,169,110,.4);transform:translateY(-1px)}
+.comp-card.selected{border-color:var(--accent);background:rgba(200,169,110,.05);box-shadow:0 0 0 1px var(--accent)}
+.comp-address{font-weight:600;font-size:.87rem;margin-bottom:3px}
+.comp-info{color:var(--muted);font-size:.75rem}
+.comp-price{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--accent);margin-top:6px}
+.comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:18px}
+
+/* ── API BANNER ── */
+.api-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;font-size:.8rem;line-height:1.5;margin-bottom:18px}
+.api-banner.info{background:rgba(200,169,110,.08);border:1px solid rgba(200,169,110,.2);color:var(--accent)}
+.api-banner.success{background:rgba(63,184,132,.08);border:1px solid rgba(63,184,132,.2);color:var(--green)}
+.api-banner.loading{background:rgba(107,117,144,.08);border:1px solid var(--border);color:var(--muted)}
+.api-banner svg{flex-shrink:0;width:16px;height:16px}
+.spinner{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SUMMARY HEADER ── */
+.s-header{background:linear-gradient(135deg,var(--surface) 0%,#141824 100%);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:18px;position:relative;overflow:hidden}
+.s-header::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(200,169,110,.07) 0%,transparent 70%);pointer-events:none}
+.s-pname{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--text)}
+.s-paddr{color:var(--muted);font-size:.92rem}
+.s-meta{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px}
+
+/* ── DRAW HEADER ── */
+.d-header{background:var(--surface);border:1px solid var(--border);padding:20px;border-radius:var(--radius);margin-bottom:16px}
+.d-meta{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:26px 22px;padding-bottom:calc(26px + env(safe-area-inset-bottom));width:100%;max-width:580px;max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px}
+.modal-title{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;margin-bottom:16px}
+.modal-footer{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}
+
+/* ── UTILS ── */
+.flex{display:flex}.fi{align-items:center}.jb{justify-content:space-between}.fw{flex-wrap:wrap}
+.gap2{gap:8px}.gap3{gap:12px}
+.mb2{margin-bottom:8px}.mb3{margin-bottom:12px}.mb4{margin-bottom:18px}
+.mt2{margin-top:8px}.mt3{margin-top:12px}.mt4{margin-top:18px}
+.tr{text-align:right}
+.acc{color:var(--accent)}.grn{color:var(--green)}.red{color:var(--red)}.mut{color:var(--muted)}
+.bold{font-weight:600}.serif{font-family:'Playfair Display',serif}
+.shrink0{flex-shrink:0}
+hr{border:none;border-top:1px solid var(--border);margin:18px 0}
+.par{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.par-r{display:flex;gap:9px;flex-wrap:wrap}
+.exp-card{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:13px;margin-bottom:9px}
+.exp-card-r{display:flex;justify-content:space-between;align-items:flex-start;gap:9px}
+.exp-mobile-cards{display:none}
+.sig-row{display:flex;gap:28px;flex-wrap:wrap}
+.sig-block{min-width:160px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── PRINT ── */
+@media print{
+  .top-nav,.mobile-nav,.print-hide{display:none!important}
+  body{background:#fff;color:#000}
+  .page{display:block!important;padding:0!important}
+  .card,.s-header,.d-header{border:1px solid #ccc;background:#fff}
+  .section-title,.kpi-val,.s-pname,.comp-price{color:#000}
+  .mut,.kpi-label,.card-title{color:#555}
+  .acc{color:#8B6914}.grn{color:#2e7d57}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){
+  .nav-tab{padding:7px 12px}
+}
+@media(max-width:900px){
+  .nav-pill-wrap,.desktop-tabs-wrap{display:none}
+  .mobile-nav{display:flex}
+  .page{padding-bottom:calc(var(--bot-h) + 20px + env(safe-area-inset-bottom))}
+  .g2{grid-template-columns:1fr}
+  .g4{grid-template-columns:1fr 1fr}
+  .comp-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .top-nav{padding:0 16px}
+  .page{padding:14px;padding-bottom:calc(var(--bot-h) + 14px + env(safe-area-inset-bottom))}
+  .g3{grid-template-columns:1fr}
+  .g4{grid-template-columns:1fr 1fr}
+  .g3i{grid-template-columns:1fr 1fr}
+  .card{padding:15px}
+  .section-title{font-size:1.35rem}
+  .kpi-val{font-size:1.4rem}
+  .s-pname{font-size:1.4rem}
+  .s-header{padding:18px}
+  .s-meta{flex-direction:column}
+  .s-meta .tr{text-align:left}
+  .d-meta{flex-direction:column}
+  .exp-desktop-table{display:none}
+  .exp-mobile-cards{display:block!important}
+  .comp-grid{grid-template-columns:1fr}
+  .tbl-scroll::after{content:'← scroll →';display:block;text-align:center;font-size:.68rem;color:var(--muted);padding:5px}
+}
+</style>
+</head>
+<body>
+
+<!-- SVG ICON DEFS (inline, reusable) -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ic-project" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414A1 1 0 0 1 19 9.414V19a2 2 0 0 1-2 2z"/>
+  </symbol>
+  <symbol id="ic-budget" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h2M10 15h4"/>
+  </symbol>
+  <symbol id="ic-comps" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+  </symbol>
+  <symbol id="ic-expenses" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+  </symbol>
+  <symbol id="ic-draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+  </symbol>
+  <symbol id="ic-summary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </symbol>
+  <symbol id="ic-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+  </symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+  </symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </symbol>
+  <symbol id="ic-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M21 12a9 9 0 1 1-9-9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+  </symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </symbol>
+</svg>
+
+<!-- ══════════ TOP NAV ══════════ --><!-- deploy-trigger-v2 -->
+<nav class="top-nav">
+  <div class="logo">Build<span>Lend</span></div>
+
+  <!-- Desktop pill nav -->
+  <div class="nav-pill-wrap desktop-tabs-wrap">
+    <button class="nav-tab active" onclick="showPage('project',this,'dt')">
+      <svg><use href="#ic-project"/></svg><span class="tab-label">Project</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('budget',this,'dt')">
+      <svg><use href="#ic-budget"/></svg><span class="tab-label">Budget</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('comps',this,'dt')">
+      <svg><use href="#ic-comps"/></svg><span class="tab-label">Comps &amp; ARV</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('tracker',this,'dt')">
+      <svg><use href="#ic-expenses"/></svg><span class="tab-label">Expenses</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('draws',this,'dt')">
+      <svg><use href="#ic-draw"/></svg><span class="tab-label">Draw Request</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('summary',this,'dt')">
+      <svg><use href="#ic-summary"/></svg><span class="tab-label">Summary</span>
+    </button>
+  </div>
+
+  <!-- API status indicator -->
+  <div class="nav-right">
+    <div class="api-status-dot" id="api-dot"></div>
+    <span class="api-status-text" id="api-status-text">Live Data</span>
+  </div>
+</nav>
+
+<!-- ══════════ MOBILE BOTTOM NAV ══════════ -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mob-tab active" id="mob-project" onclick="showPage('project',this,'mob')">
+      <svg><use href="#ic-project"/></svg><span>Project</span>
+    </button>
+    <button class="mob-tab" id="mob-budget" onclick="showPage('budget',this,'mob')">
+      <svg><use href="#ic-budget"/></svg><span>Budget</span>
+    </button>
+    <button class="mob-tab" id="mob-comps" onclick="showPage('comps',this,'mob')">
+      <svg><use href="#ic-comps"/></svg><span>Comps</span>
+    </button>
+    <button class="mob-tab" id="mob-tracker" onclick="showPage('tracker',this,'mob')">
+      <svg><use href="#ic-expenses"/></svg><span>Expenses</span>
+    </button>
+    <button class="mob-tab" id="mob-draws" onclick="showPage('draws',this,'mob')">
+      <svg><use href="#ic-draw"/></svg><span>Draw</span>
+    </button>
+    <button class="mob-tab" id="mob-summary" onclick="showPage('summary',this,'mob')">
+      <svg><use href="#ic-summary"/></svg><span>Summary</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: PROJECT
+═══════════════════════════════════════════ -->
+<div class="page active" id="page-project">
+  <div class="section-title">Project Details</div>
+  <div class="section-sub">Enter your construction project information. This populates all analysis tabs and your executive summary.</div>
+  <div class="g2">
+    <div>
+      <div class="card mb4">
+        <div class="card-title">Property Information</div>
+        <div class="fg"><label>Project / Development Name</label><input id="proj-name" value="Oakview Custom Residence"></div>
+        <div class="fg"><label>Property Address</label><input id="proj-addr" value="1421 Elmwood Drive"></div>
+        <div class="g2i"><div class="fg"><label>City</label><input id="proj-city" value="Huntsville"></div><div class="fg"><label>State</label><input id="proj-state" value="AL"></div></div>
+        <div class="g2i"><div class="fg"><label>Zip Code</label><input id="proj-zip" value="35801" inputmode="numeric"></div><div class="fg"><label>County</label><input id="proj-county" value="Madison"></div></div>
+        <div class="fg"><label>Property Type</label><select id="proj-type"><option>Single Family Residential</option><option>Duplex</option><option>Triplex</option><option>Quadplex</option><option>Townhome</option><option>Spec Home</option><option selected>Custom Home</option></select></div>
+        <div class="g2i"><div class="fg"><label>Lot Size (sqft)</label><input id="proj-lot" type="number" value="9200" inputmode="numeric"></div><div class="fg"><label>Living Area (sqft)</label><input id="proj-sqft" type="number" value="2450" inputmode="numeric" oninput="recalc()"></div></div>
+        <div class="g3i"><div class="fg"><label>Beds</label><input id="proj-beds" type="number" value="4" inputmode="numeric"></div><div class="fg"><label>Baths</label><input id="proj-baths" type="number" value="3" inputmode="numeric"></div><div class="fg"><label>Garage</label><input id="proj-garage" type="number" value="2" inputmode="numeric"></div></div>
+        <div class="fg"><label>Stories</label><select id="proj-stories"><option value="1">1 Story</option><option value="2" selected>2 Story</option></select></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Borrower &amp; Lender Info</div>
+        <div class="fg"><label>Borrower / Developer Name</label><input id="borr-name" value="James R. Hargrove"></div>
+        <div class="fg"><label>Borrower Entity (LLC, etc.)</label><input id="borr-entity" value="Hargrove Properties LLC"></div>
+        <div class="fg"><label>Borrower Credit Score (est.)</label><input id="borr-credit" type="number" value="740" inputmode="numeric"></div>
+        <div class="fg"><label>Builder / GC Name</label><input id="gc-name" value="Summit Build Group"></div>
+        <div class="fg"><label>Lender / Bank Name</label><input id="lender-name" value="First Heritage Bank"></div>
+        <div class="fg"><label>Loan Officer</label><input id="loan-officer" value=""></div>
+      </div>
+    </div>
+    <div>
+      <div class="card mb4">
+        <div class="card-title">Financing Terms</div>
+        <div class="fg"><label>Requested Loan Amount ($)</label><input id="loan-amount" type="number" value="520000" inputmode="numeric" oninput="recalc()"></div>
+        <div class="g2i"><div class="fg"><label>Interest Rate (%)</label><input id="interest-rate" type="number" step="0.01" value="8.5" inputmode="decimal" oninput="recalc()"></div><div class="fg"><label>Loan Term (months)</label><input id="loan-term" type="number" value="12" inputmode="numeric" oninput="recalc()"></div></div>
+        <div class="g2i"><div class="fg"><label>Origination Points (%)</label><input id="orig-points" type="number" step="0.1" value="1.5" inputmode="decimal" oninput="recalc()"></div><div class="fg"><label>Contingency (%)</label><input id="contingency" type="number" step="0.5" value="10" inputmode="numeric" oninput="recalc()"></div></div>
+        <div class="g2i"><div class="fg"><label>Equity / Down Payment ($)</label><input id="equity" type="number" value="130000" inputmode="numeric" oninput="recalc()"></div><div class="fg"><label>Est. Sale Costs (%)</label><input id="sale-costs-pct" type="number" step="0.1" value="6" inputmode="decimal" oninput="recalc()"></div></div>
+        <div class="fg"><label>After Construction Value / ARV ($)</label><input id="arv" type="number" value="750000" inputmode="numeric" oninput="recalc()"></div>
+      </div>
+      <div class="card mb4">
+        <div class="card-title">Project Timeline</div>
+        <div class="g2i"><div class="fg"><label>Start Date</label><input type="date" id="proj-start" value="2025-03-01"></div><div class="fg"><label>Completion Date</label><input type="date" id="proj-end" value="2026-03-01"></div></div>
+        <div class="fg"><label>Number of Draw Periods</label><input id="draw-periods" type="number" value="5" inputmode="numeric"></div>
+        <div class="fg"><label>Project Description / Notes</label><textarea id="proj-notes">New construction custom single-family home. High-end finishes, open floor plan, quartz countertops, hardwood floors throughout. Located in sought-after Elmwood subdivision near top-rated schools.</textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: BUDGET
+═══════════════════════════════════════════ -->
+<div class="page" id="page-budget">
+  <div class="section-title">Construction Budget</div>
+  <div class="section-sub">Enter all hard and soft costs. Key ratios update in real time.</div>
+  <div class="g4 mb4">
+    <div class="card kpi"><div class="kpi-label">Total Project Cost</div><div class="kpi-val acc" id="kpi-total-cost">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">Loan-to-Cost (LTC)</div><div class="kpi-val" id="kpi-ltc">0%</div><div style="font-size:.7rem;color:var(--muted);margin-top:3px" id="kpi-ltc-flag"></div></div>
+    <div class="card kpi"><div class="kpi-label">Loan-to-Value (LTV)</div><div class="kpi-val" id="kpi-ltv">0%</div><div style="font-size:.7rem;color:var(--muted);margin-top:3px" id="kpi-ltv-flag"></div></div>
+    <div class="card kpi"><div class="kpi-label">Cost per Sqft</div><div class="kpi-val" id="kpi-cost-sqft">$0</div></div>
+  </div>
+  <div class="g2">
+    <div>
+      <div class="card mb4">
+        <div class="card-title">Land &amp; Acquisition</div>
+        <div class="fg"><label>Land / Lot Purchase Price ($)</label><input type="number" id="b-land" value="95000" inputmode="numeric" oninput="recalc()"></div>
+        <div class="g2i"><div class="fg"><label>Closing Costs ($)</label><input type="number" id="b-closing" value="4200" inputmode="numeric" oninput="recalc()"></div><div class="fg"><label>Surveys / Inspections ($)</label><input type="number" id="b-surveys" value="1500" inputmode="numeric" oninput="recalc()"></div></div>
+      </div>
+      <div class="card mb4">
+        <div class="card-title">Hard Construction Costs</div>
+        <div class="g2i">
+          <div class="fg"><label>Site Work / Grading ($)</label><input type="number" id="b-site" value="12000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Foundation / Concrete ($)</label><input type="number" id="b-foundation" value="32000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Framing / Structure ($)</label><input type="number" id="b-framing" value="68000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Roofing ($)</label><input type="number" id="b-roofing" value="18000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Plumbing ($)</label><input type="number" id="b-plumbing" value="24000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Electrical ($)</label><input type="number" id="b-electrical" value="22000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>HVAC ($)</label><input type="number" id="b-hvac" value="19000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Insulation ($)</label><input type="number" id="b-insulation" value="8500" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Drywall ($)</label><input type="number" id="b-drywall" value="14000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Flooring ($)</label><input type="number" id="b-flooring" value="26000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Cabinets &amp; Countertops ($)</label><input type="number" id="b-cabinets" value="32000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Exterior Finishes ($)</label><input type="number" id="b-exterior" value="21000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Windows &amp; Doors ($)</label><input type="number" id="b-windows" value="18000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Trim / Paint ($)</label><input type="number" id="b-finishes" value="16000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Appliances &amp; Fixtures ($)</label><input type="number" id="b-appliances" value="12000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Landscaping ($)</label><input type="number" id="b-landscape" value="9500" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Driveway / Flatwork ($)</label><input type="number" id="b-driveway" value="7000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Other Hard Costs ($)</label><input type="number" id="b-other-hard" value="0" inputmode="numeric" oninput="recalc()"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Soft Costs &amp; Fees</div>
+        <div class="g2i">
+          <div class="fg"><label>Architectural / Engineering ($)</label><input type="number" id="b-arch" value="8000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Permits &amp; Fees ($)</label><input type="number" id="b-permits" value="6500" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Legal / Title ($)</label><input type="number" id="b-legal" value="2500" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Builder's Risk Insurance ($)</label><input type="number" id="b-insurance" value="4800" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Property Taxes (build) ($)</label><input type="number" id="b-taxes" value="1800" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Utilities During Build ($)</label><input type="number" id="b-utilities" value="1200" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>GC Fee / Overhead / Profit ($)</label><input type="number" id="b-gc-fee" value="28000" inputmode="numeric" oninput="recalc()"></div>
+          <div class="fg"><label>Other Soft Costs ($)</label><input type="number" id="b-other-soft" value="0" inputmode="numeric" oninput="recalc()"></div>
+        </div>
+        <div class="g3i">
+          <div class="fg"><label>Origination Fee <span class="mut">(auto)</span></label><input type="number" id="b-orig-fee" readonly></div>
+          <div class="fg"><label>Interest Reserve <span class="mut">(auto)</span></label><input type="number" id="b-interest-reserve" readonly></div>
+          <div class="fg"><label>Contingency <span class="mut">(auto)</span></label><input type="number" id="b-contingency" readonly></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card mb4">
+        <div class="card-title">Budget Summary</div>
+        <table class="t-simple">
+          <tr><td class="mut">Land &amp; Acquisition</td><td class="tr bold" id="sum-land">$0</td></tr>
+          <tr><td class="mut">Hard Costs</td><td class="tr bold" id="sum-hard">$0</td></tr>
+          <tr><td class="mut">Soft Costs &amp; Fees</td><td class="tr bold" id="sum-soft">$0</td></tr>
+          <tr><td class="mut">Contingency Reserve</td><td class="tr bold" id="sum-contingency">$0</td></tr>
+          <tr style="border-top:2px solid var(--accent)"><td class="bold acc">TOTAL PROJECT COST</td><td class="tr bold acc serif" style="font-size:1.05rem" id="sum-total">$0</td></tr>
+          <tr><td class="mut">Requested Loan</td><td class="tr" id="sum-loan">$0</td></tr>
+          <tr><td class="mut">Borrower Equity</td><td class="tr" id="sum-equity">$0</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Key Financial Ratios</div>
+        <table class="t-simple">
+          <tr><td class="mut">Loan-to-Cost (LTC)</td><td class="tr bold" id="sum-ltc">0%</td></tr>
+          <tr><td class="mut">Loan-to-Value (LTV)</td><td class="tr bold" id="sum-ltv">0%</td></tr>
+          <tr><td class="mut">Debt Coverage Ratio</td><td class="tr bold" id="sum-dcr">N/A</td></tr>
+          <tr><td class="mut">Profit on Cost</td><td class="tr bold grn" id="sum-profit-pct">0%</td></tr>
+          <tr><td class="mut">Est. Net Profit</td><td class="tr bold grn" id="sum-profit">$0</td></tr>
+          <tr><td class="mut">Interest Carry (est.)</td><td class="tr" id="sum-interest">$0</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: COMPS & ARV
+═══════════════════════════════════════════ -->
+<div class="page" id="page-comps">
+  <div class="section-title">Comparable Sales &amp; ARV</div>
+  <div class="section-sub">Search recent sold properties to support your After Construction Value. Tap cards to include them in your ARV analysis.</div>
+
+  <div id="comp-api-banner" class="api-banner info" style="display:none"></div>
+
+  <div class="g2 mb4">
+    <div class="card">
+      <div class="card-title">Search Filters</div>
+      <div class="g2i"><div class="fg"><label>Address or Zip Code</label><input id="comp-address" placeholder="e.g. 1421 Elmwood Dr, Huntsville AL" value="35801"></div><div class="fg"><label>Bedrooms</label><input id="comp-beds" type="number" value="4" inputmode="numeric"></div></div>
+      <div class="g2i"><div class="fg"><label>Min Sqft</label><input id="comp-min-sqft" type="number" value="2000" inputmode="numeric"></div><div class="fg"><label>Max Sqft</label><input id="comp-max-sqft" type="number" value="3000" inputmode="numeric"></div></div>
+      <div class="g2i"><div class="fg"><label>Min Price ($)</label><input id="comp-min-price" type="number" value="150000" inputmode="numeric"></div><div class="fg"><label>Max Price ($)</label><input id="comp-max-price" type="number" value="900000" inputmode="numeric"></div></div>
+      <div class="fg"><label>Max Days Since Sale</label>
+        <select id="comp-days"><option value="90">Last 90 days</option><option value="180" selected>Last 6 months</option><option value="365">Last 12 months</option></select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="searchComps()" id="comp-search-btn">
+        <svg><use href="#ic-search"/></svg> Find Comparable Sales
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-title">ARV Analysis</div>
+      <table class="t-simple">
+        <tr><td class="mut">Data Source</td><td class="tr bold" id="comp-source">—</td></tr>
+        <tr><td class="mut">Comps Selected</td><td class="tr bold" id="comp-count">0</td></tr>
+        <tr><td class="mut">Avg Sale Price</td><td class="tr bold acc" id="comp-avg-price">—</td></tr>
+        <tr><td class="mut">Avg Price / Sqft</td><td class="tr" id="comp-avg-ppsf">—</td></tr>
+        <tr><td class="mut">Range (Low / High)</td><td class="tr" id="comp-range">—</td></tr>
+        <tr><td class="mut">Suggested ARV</td><td class="tr bold grn" id="comp-suggested-arv">—</td></tr>
+      </table>
+      <hr>
+      <div class="fg"><label>Apply ARV to Project ($)</label><input id="comp-arv-override" type="number" inputmode="numeric" placeholder="auto-fills from comps" oninput="document.getElementById('arv').value=this.value;recalc()"></div>
+      <div id="comp-arv-note" class="mut" style="font-size:.77rem;line-height:1.4"></div>
+    </div>
+  </div>
+
+  <div id="comp-results-grid" class="comp-grid" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: EXPENSE TRACKER
+═══════════════════════════════════════════ -->
+<div class="page" id="page-tracker">
+  <div class="par">
+    <div><div class="section-title">Expense Tracker</div><div class="section-sub" style="margin-bottom:0">Log all transactions with detailed notes. Use to generate draw requests.</div></div>
+    <button class="btn btn-primary shrink0" onclick="openExpenseModal()"><svg><use href="#ic-plus"/></svg> Add Expense</button>
+  </div>
+  <div class="g4 mb4">
+    <div class="card kpi"><div class="kpi-label">Total Spent</div><div class="kpi-val acc" id="tr-total-spent">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">Loan Budget</div><div class="kpi-val" id="tr-budget">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">% Complete</div><div class="kpi-val" id="tr-pct">0%</div><div class="pw"><div class="pb pb-g" id="tr-bar" style="width:0%"></div></div></div>
+    <div class="card kpi"><div class="kpi-label">Remaining</div><div class="kpi-val grn" id="tr-remaining">$0</div></div>
+  </div>
+  <div class="flex fi jb gap2 mb3" style="flex-wrap:wrap">
+    <div class="card-title" style="margin:0">Transaction Log</div>
+    <select id="tr-filter" onchange="renderExpenses()" style="width:170px;font-size:14px"><option value="">All Categories</option><option>Site Work</option><option>Foundation</option><option>Framing</option><option>Roofing</option><option>Plumbing</option><option>Electrical</option><option>HVAC</option><option>Insulation</option><option>Drywall</option><option>Flooring</option><option>Cabinets</option><option>Exterior</option><option>Windows &amp; Doors</option><option>Finishes</option><option>Appliances</option><option>Landscaping</option><option>Permits &amp; Fees</option><option>Soft Costs</option><option>Other</option></select>
+  </div>
+  <div class="card exp-desktop-table">
+    <div class="tbl-scroll">
+      <table><thead><tr><th>Date</th><th>Vendor / Payee</th><th>Category</th><th>Amount</th><th>Draw #</th><th>Notes</th><th>Receipt</th><th style="width:64px"></th></tr></thead>
+      <tbody id="expense-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:36px">No expenses yet. Click "+ Add Expense" to begin.</td></tr></tbody></table>
+    </div>
+  </div>
+  <div id="expense-mobile-cards" class="exp-mobile-cards"><div style="text-align:center;color:var(--muted);padding:36px;background:var(--surface);border-radius:var(--radius)">No expenses yet. Tap "+ Add Expense".</div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: DRAW REQUEST
+═══════════════════════════════════════════ -->
+<div class="page" id="page-draws">
+  <div class="par">
+    <div><div class="section-title">Draw Request</div><div class="section-sub" style="margin-bottom:0">Generate a formal reimbursement request for your lender.</div></div>
+    <div class="par-r">
+      <select id="draw-select" style="font-size:14px" onchange="renderDrawRequest()"><option value="all">All Draws</option><option value="1">Draw #1</option><option value="2">Draw #2</option><option value="3">Draw #3</option><option value="4">Draw #4</option><option value="5">Draw #5</option></select>
+      <button class="btn btn-primary" onclick="window.print()"><svg><use href="#ic-print"/></svg> Print</button>
+    </div>
+  </div>
+  <div class="d-header">
+    <div class="d-meta">
+      <div><div style="font-size:.65rem;text-transform:uppercase;letter-spacing:1.8px;color:var(--accent);margin-bottom:7px">Construction Draw Request</div><div style="font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700" id="draw-proj-name">—</div><div style="color:var(--muted);margin-top:3px;font-size:.88rem" id="draw-proj-addr">—</div></div>
+      <div><div style="font-size:.75rem;color:var(--muted)">Request Date</div><div class="bold" id="draw-date"></div><div style="font-size:.75rem;color:var(--muted);margin-top:7px">Borrower</div><div class="bold" id="draw-borrower">—</div><div style="font-size:.75rem;color:var(--muted);margin-top:7px">Lender</div><div class="bold" id="draw-lender">—</div></div>
+    </div>
+  </div>
+  <div class="card mb4"><div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th class="tr">Amount</th><th>Receipt</th></tr></thead><tbody id="draw-tbody"></tbody><tfoot><tr style="background:var(--surface2)"><td colspan="4" class="bold acc">TOTAL DRAW REQUEST</td><td class="tr bold acc serif" id="draw-total" style="font-size:1.05rem">$0.00</td><td></td></tr></tfoot></table></div></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Certification</div>
+      <p style="font-size:.81rem;color:var(--muted);line-height:1.75">I/We hereby certify that the above listed expenditures have been made in connection with the construction of the above-referenced project and that these funds are needed for payment of valid construction costs. All work has been completed in accordance with the approved plans and specifications.</p>
+      <div style="margin-top:22px;border-top:1px solid var(--border);padding-top:14px"><div class="sig-row"><div class="sig-block"><div style="font-size:.72rem;color:var(--muted)">Borrower Signature</div><div style="height:38px;border-bottom:1px solid var(--border);margin-top:7px"></div><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Date: ___________</div></div><div class="sig-block"><div style="font-size:.72rem;color:var(--muted)">Builder / GC Signature</div><div style="height:38px;border-bottom:1px solid var(--border);margin-top:7px"></div><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Date: ___________</div></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Draw Balance Summary</div>
+      <table class="t-simple"><tr><td class="mut">Total Loan Amount</td><td class="tr bold" id="ds-loan">$0</td></tr><tr><td class="mut">Previously Drawn</td><td class="tr" id="ds-prev">$0</td></tr><tr><td class="mut">This Draw Request</td><td class="tr acc bold" id="ds-this">$0</td></tr><tr><td class="mut">Balance Remaining</td><td class="tr bold grn" id="ds-remaining">$0</td></tr><tr><td class="mut">% of Loan Drawn</td><td class="tr" id="ds-pct">0%</td></tr></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE: EXECUTIVE SUMMARY
+═══════════════════════════════════════════ -->
+<div class="page" id="page-summary">
+  <div class="par print-hide">
+    <div><div class="section-title">Executive Summary</div><div class="section-sub" style="margin-bottom:0">Bank-ready project analysis report.</div></div>
+    <button class="btn btn-primary shrink0" onclick="window.print()"><svg><use href="#ic-print"/></svg> Print / PDF</button>
+  </div>
+  <div class="s-header mb4">
+    <div class="s-meta">
+      <div><div style="font-size:.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--accent);margin-bottom:9px">Construction Loan Executive Summary</div><div class="s-pname" id="s-proj-name">—</div><div class="s-paddr" id="s-proj-addr">—</div><div style="color:var(--accent);font-size:.78rem;margin-top:9px;font-weight:500" id="s-date"></div></div>
+      <div class="tr"><div style="font-size:.75rem;color:var(--muted)">Submitted By</div><div class="bold" id="s-borrower">—</div><div style="font-size:.75rem;color:var(--muted);margin-top:7px">Lender</div><div class="bold" id="s-lender">—</div><div style="font-size:.75rem;color:var(--muted);margin-top:7px">Loan Officer</div><div class="bold" id="s-lo">—</div></div>
+    </div>
+  </div>
+  <div class="g4 mb4">
+    <div class="card kpi"><div class="kpi-label">Total Project Cost</div><div class="kpi-val acc serif" id="s-total-cost">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">Loan Amount</div><div class="kpi-val serif" id="s-loan">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">Estimated ARV</div><div class="kpi-val grn serif" id="s-arv">$0</div></div>
+    <div class="card kpi"><div class="kpi-label">Est. Net Profit</div><div class="kpi-val serif" id="s-net-profit">$0</div></div>
+  </div>
+  <div class="g2 mb4">
+    <div class="card"><div class="card-title">Property &amp; Deal Summary</div><table class="t-simple"><tr><td class="mut">Property Type</td><td class="tr bold" id="s-type">—</td></tr><tr><td class="mut">Address</td><td class="tr" id="s-addr">—</td></tr><tr><td class="mut">Living Area</td><td class="tr" id="s-sqft">—</td></tr><tr><td class="mut">Bedrooms / Baths</td><td class="tr" id="s-beds">—</td></tr><tr><td class="mut">Lot Size</td><td class="tr" id="s-lot">—</td></tr><tr><td class="mut">Builder / GC</td><td class="tr" id="s-gc">—</td></tr><tr><td class="mut">Projected Start</td><td class="tr" id="s-start">—</td></tr><tr><td class="mut">Projected Completion</td><td class="tr" id="s-end">—</td></tr><tr><td class="mut">Loan Term</td><td class="tr" id="s-term">—</td></tr></table></div>
+    <div class="card"><div class="card-title">Key Financial Metrics</div><table class="t-simple"><tr><td class="mut">Loan-to-Cost (LTC)</td><td class="tr"><span id="s-ltc" class="bold">0%</span> <span id="s-ltc-badge"></span></td></tr><tr><td class="mut">Loan-to-Value (LTV)</td><td class="tr"><span id="s-ltv" class="bold">0%</span> <span id="s-ltv-badge"></span></td></tr><tr><td class="mut">Interest Rate</td><td class="tr bold" id="s-rate">—</td></tr><tr><td class="mut">Origination Points</td><td class="tr" id="s-points">—</td></tr><tr><td class="mut">Interest Carry (est.)</td><td class="tr" id="s-carry">—</td></tr><tr><td class="mut">Cost per Sqft</td><td class="tr" id="s-cpf">—</td></tr><tr><td class="mut">ARV per Sqft</td><td class="tr" id="s-apf">—</td></tr><tr><td class="mut">Gross Profit</td><td class="tr bold grn" id="s-gross-profit">—</td></tr><tr><td class="mut">Profit on Cost</td><td class="tr bold grn" id="s-profit-pct">—</td></tr><tr><td class="mut">Est. Sale Costs</td><td class="tr" id="s-sale-costs">—</td></tr><tr><td class="mut">Borrower Credit Score</td><td class="tr" id="s-credit">—</td></tr><tr><td class="mut">Borrower Equity</td><td class="tr" id="s-equity">—</td></tr></table></div>
+  </div>
+  <div class="card mb4"><div class="card-title">Construction Budget Breakdown</div><div class="g3" style="gap:14px"><div><div style="font-size:.74rem;color:var(--muted);margin-bottom:5px">Land &amp; Acquisition</div><div class="bold acc serif" id="s-b-land">$0</div><div class="pw mt2"><div class="pb" id="pb-land" style="width:0%"></div></div></div><div><div style="font-size:.74rem;color:var(--muted);margin-bottom:5px">Hard Construction Costs</div><div class="bold acc serif" id="s-b-hard">$0</div><div class="pw mt2"><div class="pb" id="pb-hard" style="width:0%"></div></div></div><div><div style="font-size:.74rem;color:var(--muted);margin-bottom:5px">Soft Costs &amp; Fees</div><div class="bold acc serif" id="s-b-soft">$0</div><div class="pw mt2"><div class="pb" id="pb-soft" style="width:0%"></div></div></div></div><hr><div id="s-budget-detail" class="g4" style="gap:9px;margin-top:2px"></div></div>
+  <div class="card mb4"><div class="card-title">ARV Comparable Support</div><div id="s-comps-table"><p class="mut" style="font-size:.84rem">No comps selected. Go to Comps &amp; ARV to search.</p></div></div>
+  <div class="card mb4"><div class="card-title">Project Description</div><p id="s-notes" style="font-size:.87rem;line-height:1.8;color:var(--text)"></p></div>
+  <div class="card"><div class="card-title">Underwriting Assessment</div><div id="s-assessment" style="font-size:.84rem;line-height:1.8"></div></div>
+</div>
+
+<!-- ══════════ EXPENSE MODAL ══════════ -->
+<div class="modal-overlay" id="expense-modal" onclick="handleOverlay(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log Expense</div>
+    <input type="hidden" id="exp-edit-idx" value="-1">
+    <div class="g2i"><div class="fg"><label>Date</label><input type="date" id="exp-date"></div><div class="fg"><label>Draw #</label><select id="exp-draw"><option value="1">Draw #1</option><option value="2">Draw #2</option><option value="3">Draw #3</option><option value="4">Draw #4</option><option value="5">Draw #5</option></select></div></div>
+    <div class="fg"><label>Vendor / Payee</label><input id="exp-vendor" placeholder="e.g. ABC Lumber Co."></div>
+    <div class="fg"><label>Category</label><select id="exp-cat"><option>Site Work</option><option>Foundation</option><option>Framing</option><option>Roofing</option><option>Plumbing</option><option>Electrical</option><option>HVAC</option><option>Insulation</option><option>Drywall</option><option>Flooring</option><option>Cabinets</option><option>Exterior</option><option>Windows &amp; Doors</option><option>Finishes</option><option>Appliances</option><option>Landscaping</option><option>Permits &amp; Fees</option><option>Soft Costs</option><option>Other</option></select></div>
+    <div class="fg"><label>Amount ($)</label><input type="number" id="exp-amount" placeholder="0.00" inputmode="decimal"></div>
+    <div class="g2i"><div class="fg"><label>Invoice / Check #</label><input id="exp-invoice" placeholder="Optional"></div><div class="fg"><label>Receipt?</label><select id="exp-receipt"><option value="Yes">Yes</option><option value="No">No</option><option value="Pending" selected>Pending</option></select></div></div>
+    <div class="fg"><label>Notes / Description</label><textarea id="exp-notes" placeholder="Detailed description of work or materials purchased…"></textarea></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveExpense()"><svg><use href="#ic-check"/></svg> Save Expense</button></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let expenses=[], selectedComps=[], generatedComps=[];
+const pages=['project','budget','comps','tracker','draws','summary'];
+
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+function showPage(id,el,type){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(type==='mob'){
+    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.nav-tab').forEach((t,i)=>{t.classList.remove('active');if(pages[i]===id)t.classList.add('active');});
+  } else {
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    const mob=document.getElementById('mob-'+id);
+    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('active'));
+    if(mob)mob.classList.add('active');
+  }
+  if(id==='summary')buildSummary();
+  if(id==='draws')buildDrawPage();
+  if(id==='tracker')renderExpenses();
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════
+// FORMATTERS
+// ══════════════════════════════════════════
+const fmt=n=>'$'+Math.round(n).toLocaleString();
+const fmtD=n=>'$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const pct=n=>(n*100).toFixed(1)+'%';
+const v=id=>parseFloat(document.getElementById(id)?.value)||0;
+const s=id=>document.getElementById(id)?.value||'';
+
+// ══════════════════════════════════════════
+// API KEY HANDLING
+// ══════════════════════════════════════════
+// API calls route through Netlify function proxy — key is server-side only
+// API key hardcoded — no UI input needed
+
+// ══════════════════════════════════════════
+// RECALC
+// ══════════════════════════════════════════
+function recalc(){
+  const land=v('b-land')+v('b-closing')+v('b-surveys');
+  const hard=v('b-site')+v('b-foundation')+v('b-framing')+v('b-roofing')+v('b-plumbing')+v('b-electrical')+v('b-hvac')+v('b-insulation')+v('b-drywall')+v('b-flooring')+v('b-cabinets')+v('b-exterior')+v('b-windows')+v('b-finishes')+v('b-appliances')+v('b-landscape')+v('b-driveway')+v('b-other-hard');
+  const softBase=v('b-arch')+v('b-permits')+v('b-legal')+v('b-insurance')+v('b-taxes')+v('b-utilities')+v('b-gc-fee')+v('b-other-soft');
+  const loan=v('loan-amount'),rate=v('interest-rate')/100,term=v('loan-term');
+  const origFee=loan*(v('orig-points')/100);
+  const carry=loan*(rate/2)*(term/12);
+  document.getElementById('b-orig-fee').value=Math.round(origFee);
+  document.getElementById('b-interest-reserve').value=Math.round(carry);
+  const soft=softBase+origFee+carry;
+  const cont=(hard+soft)*(v('contingency')/100);
+  document.getElementById('b-contingency').value=Math.round(cont);
+  const total=land+hard+soft+cont;
+  const arv=v('arv'),equity=v('equity');
+  const saleCosts=arv*(v('sale-costs-pct')/100);
+  const netP=arv-total-saleCosts;
+  const ltc=total?loan/total:0,ltv=arv?loan/arv:0;
+  const sqft=v('proj-sqft')||1;
+  const set=(id,val)=>document.getElementById(id).textContent=val;
+  set('sum-land',fmt(land));set('sum-hard',fmt(hard));set('sum-soft',fmt(soft));
+  set('sum-contingency',fmt(cont));set('sum-total',fmt(total));set('sum-loan',fmt(loan));set('sum-equity',fmt(equity));
+  set('sum-ltc',pct(ltc));set('sum-ltv',pct(ltv));set('sum-profit',fmt(netP));
+  set('sum-profit-pct',pct(netP/(total||1)));set('sum-dcr','N/A (construction)');set('sum-interest',fmt(carry));
+  set('kpi-total-cost',fmt(total));set('kpi-ltc',pct(ltc));set('kpi-ltv',pct(ltv));
+  set('kpi-cost-sqft','$'+Math.round(total/sqft)+'/sf');
+  set('kpi-ltc-flag',ltc>.85?'⚠ Above 85%':ltc>.80?'⚡ Moderate':'✓ Strong');
+  set('kpi-ltv-flag',ltv>.75?'⚠ Above 75%':ltv>.65?'⚡ Standard':'✓ Conservative');
+  set('tr-budget',fmt(loan));
+  updateTrackerKPIs();
+}
+
+// ══════════════════════════════════════════
+// RENTCAST API — LIVE COMP SEARCH
+// ══════════════════════════════════════════
+async function fetchRentCastComps(){
+  const address=document.getElementById('comp-address').value.trim();
+  const beds=parseInt(document.getElementById('comp-beds').value)||null;
+  const minSF=parseInt(document.getElementById('comp-min-sqft').value)||null;
+  const maxSF=parseInt(document.getElementById('comp-max-sqft').value)||null;
+  const daysOld=parseInt(document.getElementById('comp-days').value)||180;
+  const mySqft=v('proj-sqft')||2450;
+
+  // All params sent to our Netlify proxy — API key never touches the browser
+  const params=new URLSearchParams();
+  if(address)params.set('address',address);
+  if(beds)params.set('bedrooms',beds);
+  if(mySqft)params.set('squareFootage',mySqft);
+  params.set('maxRadius','5');
+  params.set('daysOld',daysOld);
+  params.set('compCount','6');
+  params.set('propertyType','Single Family');
+
+  showCompBanner('loading','<svg class="spinner"><use href="#ic-spin"/></svg> Fetching live comps from RentCast…');
+
+  const resp=await fetch(`/.netlify/functions/comps?${params.toString()}`,{
+    signal:AbortSignal.timeout(15000)
+  });
+
+  if(!resp.ok){
+    const err=await resp.json().catch(()=>({}));
+    throw new Error(err.message||`HTTP ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
+function showCompBanner(type,html){
+  const b=document.getElementById('comp-api-banner');
+  b.style.display='flex';
+  b.className='api-banner '+type;
+  b.innerHTML=html;
+}
+function hideCompBanner(){document.getElementById('comp-api-banner').style.display='none';}
+
+// ══════════════════════════════════════════
+// COMP SEARCH — routes to live or demo
+// ══════════════════════════════════════════
+async function searchComps(){
+  const btn=document.getElementById('comp-search-btn');
+  btn.disabled=true;
+  btn.innerHTML='<svg class="spinner"><use href="#ic-spin"/></svg> Searching…';
+
+  try{
+    if(true){ // always use proxy
+      // ── LIVE PATH ──
+      const data=await fetchRentCastComps();
+      const comps=data.comparables||[];
+
+      if(!comps.length){
+        showCompBanner('info','<svg><use href="#ic-info"/></svg> RentCast returned no comps matching those criteria. Try widening your search area or extending the date range.');
+        generatedComps=[];
+      } else {
+        hideCompBanner();
+        // Normalize RentCast response to our internal format
+        generatedComps=comps.map(c=>({
+          address:c.formattedAddress||c.addressLine1||'Unknown',
+          city:(c.city||'')+(c.state?', '+c.state:'')+(c.zipCode?' '+c.zipCode:''),
+          beds:c.bedrooms||'—',
+          baths:c.bathrooms||'—',
+          sf:c.squareFootage||0,
+          garage:null,
+          price:c.price||c.lastSalePrice||0,
+          ppsf:c.squareFootage?(Math.round((c.price||c.lastSalePrice||0)/c.squareFootage)):0,
+          soldDate:c.lastSaleDate?new Date(c.lastSaleDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—',
+          status:'Sold',
+          daysAgo:c.lastSaleDate?Math.round((Date.now()-new Date(c.lastSaleDate))/86400000)+' days ago':'—',
+          yearBuilt:c.yearBuilt||'—',
+          isLive:true,
+        }));
+        document.getElementById('comp-source').textContent='RentCast (Live)';
+        showCompBanner('success','<svg><use href="#ic-check"/></svg> '+generatedComps.length+' live comps retrieved from RentCast. Tap cards to select for your ARV analysis.');
+      }
+    } else {
+      // ── DEMO PATH ──
+      hideCompBanner();
+      generatedComps=generateDemoComps();
+      document.getElementById('comp-source').textContent='Demo Data';
+    }
+
+    selectedComps=[];
+    renderComps();
+    updateARVAnalysis();
+
+  } catch(err){
+    showCompBanner('info','<svg><use href="#ic-info"/></svg> RentCast error: '+err.message+'. Falling back to demo data.');
+    generatedComps=generateDemoComps();
+    document.getElementById('comp-source').textContent='Demo (API error)';
+    selectedComps=[];renderComps();updateARVAnalysis();
+  }
+
+  btn.disabled=false;
+  btn.innerHTML='<svg><use href="#ic-search"/></svg> Find Comparable Sales';
+}
+
+// ══════════════════════════════════════════
+// DEMO COMP GENERATOR
+// ══════════════════════════════════════════
+function generateDemoComps(){
+  const minSF=parseInt(document.getElementById('comp-min-sqft').value)||1800;
+  const maxSF=parseInt(document.getElementById('comp-max-sqft').value)||3200;
+  const beds=parseInt(document.getElementById('comp-beds').value)||3;
+  const minP=parseInt(document.getElementById('comp-min-price').value)||500000;
+  const maxP=parseInt(document.getElementById('comp-max-price').value)||950000;
+  const zip=document.getElementById('comp-address').value||'35801';
+  const sts=['Elmwood Dr','Oak Ridge Ln','Maple Creek Way','Hillcrest Blvd','Stonegate Ct','Heritage Pkwy','Willowbend Rd','Parkside Ct'];
+  return Array.from({length:6},(_,i)=>{
+    const sf=Math.round(minSF+Math.random()*(maxSF-minSF));
+    const price=Math.round(minP+Math.random()*(maxP-minP));
+    const days=Math.round(20+Math.random()*150);
+    const d=new Date(Date.now()-days*86400000);
+    return{
+      address:Math.round(1000+Math.random()*8000)+' '+sts[i%sts.length],
+      city:zip+' (demo)',beds:beds+(i%3===0?1:0),baths:Math.round(2+Math.random()*2),
+      sf,garage:Math.round(1+Math.random()*2),price,ppsf:Math.round(price/sf),
+      soldDate:d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+      status:'Sold',daysAgo:days+' days ago',yearBuilt:2022+Math.floor(Math.random()*4),isLive:false,
+    };
+  });
+}
+
+// ══════════════════════════════════════════
+// RENDER COMPS
+// ══════════════════════════════════════════
+function renderComps(){
+  const g=document.getElementById('comp-results-grid');
+  g.style.display='grid';
+  if(!generatedComps.length){g.innerHTML='<p class="mut" style="font-size:.84rem;grid-column:1/-1">No results to display.</p>';return;}
+  g.innerHTML=generatedComps.map((c,i)=>{
+    const sel=selectedComps.includes(i)?'selected':'';
+    const liveTag=c.isLive?'<span class="badge bg" style="font-size:.62rem">Live</span>':'<span class="badge" style="font-size:.62rem;background:rgba(107,117,144,.1);color:var(--muted)">Demo</span>';
+    return`<div class="comp-card ${sel}" onclick="toggleComp(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        ${liveTag}<span class="mut" style="font-size:.7rem">${c.daysAgo}</span>
+      </div>
+      <div class="comp-address">${c.address}${c.city ? ", " + c.city : ""}</div>
+      <div class="comp-info" style="margin-top:4px">${c.beds}bd · ${c.baths}ba · ${c.sf.toLocaleString()} sf${c.garage?' · '+c.garage+'ga':''} · ${c.yearBuilt}</div>
+      <div class="comp-price">${fmt(c.price)}</div>
+      <div class="comp-info">$${c.ppsf}/sqft · ${c.soldDate}</div>
+      <div style="margin-top:9px;font-size:.71rem;color:${selectedComps.includes(i)?'var(--accent)':'var(--muted)'};font-weight:600">
+        ${selectedComps.includes(i)?'✓ Selected':'Tap to select'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleComp(i){const idx=selectedComps.indexOf(i);if(idx===-1)selectedComps.push(i);else selectedComps.splice(idx,1);renderComps();updateARVAnalysis();}
+
+function updateARVAnalysis(){
+  const sel=selectedComps.map(i=>generatedComps[i]);
+  document.getElementById('comp-count').textContent=sel.length;
+  if(!sel.length){['comp-avg-price','comp-avg-ppsf','comp-range','comp-suggested-arv'].forEach(id=>document.getElementById(id).textContent='—');return;}
+  const prices=sel.map(c=>c.price);
+  const avg=prices.reduce((a,b)=>a+b)/prices.length;
+  const avgPpsf=sel.map(c=>c.ppsf).reduce((a,b)=>a+b)/sel.length;
+  const mySqft=v('proj-sqft')||2450;
+  const sug=Math.round(avgPpsf*mySqft);
+  document.getElementById('comp-avg-price').textContent=fmt(avg);
+  document.getElementById('comp-avg-ppsf').textContent='$'+Math.round(avgPpsf)+'/sqft';
+  document.getElementById('comp-range').textContent=fmt(Math.min(...prices))+' – '+fmt(Math.max(...prices));
+  document.getElementById('comp-suggested-arv').textContent=fmt(sug);
+  document.getElementById('comp-arv-override').value=sug;
+  document.getElementById('arv').value=sug;
+  const statedARV=v('arv');
+  const diff=sug?((statedARV-sug)/sug*100).toFixed(1):0;
+  document.getElementById('comp-arv-note').textContent=statedARV&&sug?`Your stated ARV is ${diff>0?'+':''}${diff}% vs comp avg.`:'';
+  recalc();
+}
+
+// ══════════════════════════════════════════
+// EXPENSE TRACKER
+// ══════════════════════════════════════════
+function openExpenseModal(idx=-1){
+  document.getElementById('exp-edit-idx').value=idx;
+  const today=new Date().toISOString().split('T')[0];
+  if(idx===-1){
+    document.getElementById('exp-date').value=today;
+    ['exp-vendor','exp-amount','exp-invoice','exp-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('exp-receipt').value='Pending';
+    document.getElementById('exp-cat').selectedIndex=0;
+    document.getElementById('exp-draw').value='1';
+  } else {
+    const e=expenses[idx];
+    document.getElementById('exp-date').value=e.date;document.getElementById('exp-vendor').value=e.vendor;
+    document.getElementById('exp-cat').value=e.cat;document.getElementById('exp-amount').value=e.amount;
+    document.getElementById('exp-invoice').value=e.invoice;document.getElementById('exp-notes').value=e.notes;
+    document.getElementById('exp-receipt').value=e.receipt;document.getElementById('exp-draw').value=e.draw;
+  }
+  document.getElementById('expense-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){document.getElementById('expense-modal').classList.remove('open');document.body.style.overflow='';}
+function handleOverlay(e){if(e.target===document.getElementById('expense-modal'))closeModal();}
+function saveExpense(){
+  const exp={date:document.getElementById('exp-date').value,vendor:document.getElementById('exp-vendor').value,cat:document.getElementById('exp-cat').value,amount:parseFloat(document.getElementById('exp-amount').value)||0,invoice:document.getElementById('exp-invoice').value,notes:document.getElementById('exp-notes').value,receipt:document.getElementById('exp-receipt').value,draw:document.getElementById('exp-draw').value};
+  const idx=parseInt(document.getElementById('exp-edit-idx').value);
+  if(idx===-1)expenses.push(exp);else expenses[idx]=exp;
+  closeModal();renderExpenses();updateTrackerKPIs();
+}
+function deleteExpense(idx){if(confirm('Delete this expense?')){expenses.splice(idx,1);renderExpenses();updateTrackerKPIs();}}
+function renderExpenses(){
+  const filter=document.getElementById('tr-filter').value;
+  const filtered=filter?expenses.filter(e=>e.cat===filter):expenses;
+  const rc=r=>r==='Yes'?'bg':r==='Pending'?'by':'br';
+  const emptyMsg='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:36px">No expenses logged yet.</td></tr>';
+  if(!filtered.length){document.getElementById('expense-tbody').innerHTML=emptyMsg;document.getElementById('expense-mobile-cards').innerHTML='<div style="text-align:center;color:var(--muted);padding:36px;background:var(--surface);border-radius:var(--radius)">No expenses yet.</div>';return;}
+  document.getElementById('expense-tbody').innerHTML=filtered.map(e=>{
+    const ri=expenses.indexOf(e);
+    return`<tr><td>${e.date}</td><td class="bold">${e.vendor||'—'}</td><td><span class="badge by">${e.cat}</span></td><td class="acc bold">${fmtD(e.amount)}</td><td class="mut">Draw #${e.draw}</td><td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.notes}">${e.notes||'—'}</td><td><span class="badge ${rc(e.receipt)}">${e.receipt}</span></td><td><button class="btn btn-outline btn-sm" onclick="openExpenseModal(${ri})">Edit</button></td></tr>`;
+  }).join('');
+  document.getElementById('expense-mobile-cards').innerHTML=filtered.map(e=>{
+    const ri=expenses.indexOf(e);
+    return`<div class="exp-card"><div class="exp-card-r"><div><div class="bold" style="font-size:.9rem">${e.vendor||'(no vendor)'}</div><div class="mut" style="font-size:.73rem;margin-top:2px">${e.date} · Draw #${e.draw}</div></div><div class="tr"><div class="acc bold serif" style="font-size:1.08rem">${fmtD(e.amount)}</div><span class="badge ${rc(e.receipt)}" style="margin-top:3px">${e.receipt}</span></div></div><div style="margin-top:7px;display:flex;gap:7px;align-items:center;flex-wrap:wrap"><span class="badge by">${e.cat}</span>${e.notes?`<span class="mut" style="font-size:.73rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.notes}</span>`:''}</div><div style="margin-top:9px;display:flex;gap:7px"><button class="btn btn-outline btn-sm" onclick="openExpenseModal(${ri})" style="flex:1">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteExpense(${ri})" style="flex:1">Delete</button></div></div>`;
+  }).join('');
+}
+function updateTrackerKPIs(){
+  const total=expenses.reduce((s,e)=>s+e.amount,0);
+  const budget=v('loan-amount')||1;
+  const p=Math.min(total/budget*100,100),rem=budget-total;
+  document.getElementById('tr-total-spent').textContent=fmt(total);
+  document.getElementById('tr-pct').textContent=p.toFixed(1)+'%';
+  document.getElementById('tr-bar').style.width=p+'%';
+  document.getElementById('tr-remaining').textContent=fmt(rem);
+  document.getElementById('tr-remaining').className='kpi-val '+(rem<0?'red':'grn');
+}
+
+// ══════════════════════════════════════════
+// DRAW REQUEST
+// ══════════════════════════════════════════
+function buildDrawPage(){
+  document.getElementById('draw-proj-name').textContent=s('proj-name')||'—';
+  document.getElementById('draw-proj-addr').textContent=[s('proj-addr'),s('proj-city'),s('proj-state')].filter(Boolean).join(', ');
+  document.getElementById('draw-date').textContent=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('draw-borrower').textContent=s('borr-name')||'—';
+  document.getElementById('draw-lender').textContent=s('lender-name')||'—';
+  renderDrawRequest();
+}
+function renderDrawRequest(){
+  const dn=document.getElementById('draw-select').value;
+  const f=dn==='all'?expenses:expenses.filter(e=>e.draw===dn);
+  const rc=r=>r==='Yes'?'bg':r==='Pending'?'by':'br';
+  const tbody=document.getElementById('draw-tbody');
+  if(!f.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No expenses for this draw period.</td></tr>';document.getElementById('draw-total').textContent='$0.00';}
+  else{tbody.innerHTML=f.map(e=>`<tr><td>${e.date}</td><td class="bold">${e.vendor||'—'}</td><td>${e.cat}</td><td style="max-width:220px">${e.notes||'—'}</td><td class="tr bold acc">${fmtD(e.amount)}</td><td><span class="badge ${rc(e.receipt)}">${e.receipt}</span></td></tr>`).join('');document.getElementById('draw-total').textContent=fmtD(f.reduce((s,e)=>s+e.amount,0));}
+  const loan=v('loan-amount');
+  const thisT=f.reduce((s,e)=>s+e.amount,0);
+  const prevT=dn==='all'?0:expenses.filter(e=>e.draw<dn).reduce((s,e)=>s+e.amount,0);
+  document.getElementById('ds-loan').textContent=fmt(loan);document.getElementById('ds-prev').textContent=fmt(prevT);
+  document.getElementById('ds-this').textContent=fmtD(thisT);document.getElementById('ds-remaining').textContent=fmt(loan-prevT-thisT);
+  document.getElementById('ds-pct').textContent=pct((prevT+thisT)/(loan||1));
+}
+
+// ══════════════════════════════════════════
+// EXECUTIVE SUMMARY
+// ══════════════════════════════════════════
+function buildSummary(){
+  const addr=[s('proj-addr'),s('proj-city'),s('proj-state'),s('proj-zip')].filter(Boolean).join(', ');
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('s-proj-name',s('proj-name')||'Untitled Project');set('s-proj-addr',addr);set('s-addr',addr);
+  set('s-date','Prepared: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}));
+  set('s-borrower',[s('borr-name'),s('borr-entity')].filter(Boolean).join(' · ')||'—');
+  set('s-lender',s('lender-name')||'—');set('s-lo',s('loan-officer')||'—');
+  set('s-type',s('proj-type')||'—');set('s-sqft',v('proj-sqft').toLocaleString()+' sqft');
+  set('s-beds',v('proj-beds')+' bd / '+v('proj-baths')+' ba');set('s-lot',v('proj-lot').toLocaleString()+' sqft');
+  set('s-gc',s('gc-name')||'—');set('s-start',s('proj-start')||'—');set('s-end',s('proj-end')||'—');
+  set('s-term',v('loan-term')+' months');set('s-credit',s('borr-credit')||'—');set('s-notes',s('proj-notes')||'—');
+  const land=v('b-land')+v('b-closing')+v('b-surveys');
+  const hard=v('b-site')+v('b-foundation')+v('b-framing')+v('b-roofing')+v('b-plumbing')+v('b-electrical')+v('b-hvac')+v('b-insulation')+v('b-drywall')+v('b-flooring')+v('b-cabinets')+v('b-exterior')+v('b-windows')+v('b-finishes')+v('b-appliances')+v('b-landscape')+v('b-driveway')+v('b-other-hard');
+  const softBase=v('b-arch')+v('b-permits')+v('b-legal')+v('b-insurance')+v('b-taxes')+v('b-utilities')+v('b-gc-fee')+v('b-other-soft');
+  const loan=v('loan-amount'),rate=v('interest-rate'),termMo=v('loan-term');
+  const origFee=loan*(v('orig-points')/100);
+  const carry=loan*(rate/100/2)*(termMo/12);
+  const soft=softBase+origFee+carry;
+  const cont=(hard+soft)*(v('contingency')/100);
+  const total=land+hard+soft+cont;
+  const arv=v('arv'),saleCosts=arv*(v('sale-costs-pct')/100);
+  const grossP=arv-total,netP=grossP-saleCosts;
+  const ltc=total?loan/total:0,ltv=arv?loan/arv:0,sqft=v('proj-sqft')||1,equity=v('equity');
+  set('s-total-cost',fmt(total));set('s-loan',fmt(loan));set('s-arv',fmt(arv));set('s-net-profit',fmt(netP));
+  document.getElementById('s-net-profit').className='kpi-val serif '+(netP>=0?'grn':'red');
+  set('s-ltc',pct(ltc));set('s-ltv',pct(ltv));set('s-rate',rate+'%');
+  set('s-points',v('orig-points')+'% ('+fmt(origFee)+')');set('s-carry',fmt(carry));
+  set('s-cpf','$'+Math.round(total/sqft)+'/sqft');set('s-apf','$'+Math.round(arv/sqft)+'/sqft');
+  set('s-gross-profit',fmt(grossP));set('s-profit-pct',pct(grossP/(total||1)));
+  set('s-sale-costs',fmt(saleCosts));set('s-equity',fmt(equity));
+  const lcc=ltc>.85?'br':ltc>.80?'by':'bg';const lvc=ltv>.75?'br':ltv>.65?'by':'bg';
+  document.getElementById('s-ltc-badge').innerHTML=`<span class="badge ${lcc}">${ltc>.85?'High':ltc>.80?'Moderate':'Strong'}</span>`;
+  document.getElementById('s-ltv-badge').innerHTML=`<span class="badge ${lvc}">${ltv>.75?'High':ltv>.65?'Moderate':'Strong'}</span>`;
+  set('s-b-land',fmt(land));set('s-b-hard',fmt(hard));set('s-b-soft',fmt(soft+cont));
+  document.getElementById('pb-land').style.width=pct(land/(total||1));
+  document.getElementById('pb-hard').style.width=pct(hard/(total||1));
+  document.getElementById('pb-soft').style.width=pct((soft+cont)/(total||1));
+  const bi=[['Site Work',v('b-site')],['Foundation',v('b-foundation')],['Framing',v('b-framing')],['Roofing',v('b-roofing')],['Plumbing',v('b-plumbing')],['Electrical',v('b-electrical')],['HVAC',v('b-hvac')],['Flooring',v('b-flooring')],['Cabinets',v('b-cabinets')],['Exterior',v('b-exterior')],['Windows',v('b-windows')],['Finishes',v('b-finishes')]].filter(([,val])=>val>0);
+  document.getElementById('s-budget-detail').innerHTML=bi.map(([l,val])=>`<div><div style="font-size:.7rem;color:var(--muted)">${l}</div><div class="bold" style="font-size:.85rem">${fmt(val)}</div></div>`).join('');
+  if(selectedComps.length){
+    const cd=selectedComps.map(i=>generatedComps[i]);
+    const srcNote=cd.some(c=>c.isLive)?'RentCast live data':'Demo data';
+    document.getElementById('s-comps-table').innerHTML=`<div class="tbl-scroll"><table><thead><tr><th>Address</th><th>Sqft</th><th>Bed/Ba</th><th>Date</th><th class="tr">Price</th><th class="tr">$/Sqft</th></tr></thead><tbody>${cd.map(c=>`<tr><td class="bold">${c.address}</td><td>${c.sf.toLocaleString()}</td><td>${c.beds}/${c.baths}</td><td>${c.soldDate}</td><td class="tr acc">${fmt(c.price)}</td><td class="tr">$${c.ppsf}</td></tr>`).join('')}</tbody><tfoot><tr style="background:var(--surface2)"><td colspan="4" class="bold">Average</td><td class="tr bold acc">${fmt(cd.reduce((s,c)=>s+c.price,0)/cd.length)}</td><td class="tr bold">$${Math.round(cd.reduce((s,c)=>s+c.ppsf,0)/cd.length)}</td></tr></tfoot></table></div><p class="mut mt3" style="font-size:.74rem">${cd.length} comparable sale(s) · Source: ${srcNote}</p>`;
+  } else {
+    document.getElementById('s-comps-table').innerHTML='<p class="mut" style="font-size:.84rem">No comps selected. Go to Comps &amp; ARV to search.</p>';
+  }
+  const str=[],iss=[];
+  if(ltc<=.75)str.push('Strong LTC ('+pct(ltc)+') — well within typical lender thresholds of 80–85%.');
+  else if(ltc<=.85)iss.push('LTC of '+pct(ltc)+' is moderate — many lenders cap at 80–85%. Consider additional equity.');
+  else iss.push('LTC of '+pct(ltc)+' exceeds typical lender limits. Significant risk flag.');
+  if(ltv<=.65)str.push('Conservative LTV ('+pct(ltv)+') provides solid collateral cushion.');
+  else if(ltv<=.75)iss.push('LTV of '+pct(ltv)+' is within range but lenders may want independent appraisal support.');
+  else iss.push('LTV of '+pct(ltv)+' is high — lender may require additional collateral or reduced loan.');
+  if(netP>0)str.push('Project shows net profit of '+fmt(netP)+' ('+pct(netP/(total||1))+' on cost) — viable exit strategy.');
+  else iss.push('Project shows negative net profit at current ARV. Review assumptions or reduce costs.');
+  if(v('borr-credit')>=720)str.push('Borrower credit score of '+v('borr-credit')+' is strong and bankable.');
+  else if(v('borr-credit')>=680)iss.push('Credit score of '+v('borr-credit')+' meets minimums but may limit rate options.');
+  else if(v('borr-credit'))iss.push('Credit score of '+v('borr-credit')+' may present challenges with conventional lenders.');
+  if(equity>=total*.20)str.push('Equity contribution of '+fmt(equity)+' ('+pct(equity/(total||1))+') demonstrates strong borrower commitment.');
+  const con=v('contingency');
+  if(con>=10)str.push(con+'% contingency is appropriate for new construction.');else iss.push('Contingency of only '+con+'% — lenders typically require 10–15% on new construction.');
+  if(selectedComps.length>=3)str.push(selectedComps.length+' comparable sales support the stated ARV — solid comp coverage.');
+  else iss.push('Limited comp support ('+selectedComps.length+' comps). Add more comparables to strengthen the ARV case.');
+  document.getElementById('s-assessment').innerHTML=
+    (str.length?`<div class="mb3"><div style="font-weight:600;color:var(--green);margin-bottom:7px">✓ Strengths</div>${str.map(x=>`<div style="margin-bottom:5px;padding-left:11px;border-left:2px solid var(--green)">• ${x}</div>`).join('')}</div>`:'')
+    +(iss.length?`<div><div style="font-weight:600;color:var(--accent);margin-bottom:7px">⚠ Considerations</div>${iss.map(x=>`<div style="margin-bottom:5px;padding-left:11px;border-left:2px solid var(--accent)">• ${x}</div>`).join('')}</div>`:'')
+    +`<div style="margin-top:14px;padding:11px 14px;background:var(--surface2);border-radius:8px;font-size:.79rem;color:var(--muted);line-height:1.6"><em>This analysis is generated automatically from inputs provided. Final underwriting decisions rest with the lending institution. All projections should be verified by a licensed appraiser and financial advisor.</em></div>`;
+}
+
+// INIT
+recalc();
+// Show RentCast connected state on load
+document.getElementById('api-dot').className='api-status-dot connected';
+document.getElementById('api-status-text').textContent='RentCast Live';
+document.getElementById('draw-date').textContent=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+</script>
+</body>
+</html>
